@@ -1,0 +1,15 @@
+AddDefaultCharset utf-8
+
+RewriteEngine on
+RewriteBase /
+
+# If a directory or a file exists, use it directly.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Otherwise forward it to index.php.
+RewriteRule . index.php
+
+
+RewriteCond %{HTTP_USER_AGENT} AhrefsBot
+RewriteRule ^.* - [F,L]

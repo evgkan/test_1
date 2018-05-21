@@ -1,0 +1,136 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/engine/autoload.php';
+
+
+echo "1 - create db\n";
+echo "2 - run migrations\n";
+echo "3 - filling in with test data\n";
+echo "Your choice [1-3], or 'q' to quit: ";
+$operation = inputNumber([1, 2, 3]);
+
+if ($operation == 1) {
+    echo "MySQL user name: ";
+    $sqlUser = inputText(16);
+    echo "MySQL user pass: ";
+    $sqlPass = inputText(16);
+    echo "database name (localhost:3306): ";
+    $dbName = inputText(64);
+    try {
+        $dbh = new PDO("mysql:host=localhost", $sqlUser, $sqlPass);
+        $dbh->exec("CREATE DATABASE `$dbName`;")
+        or die(print_r($dbh->errorInfo(), true));
+    } catch (PDOException $e) {
+        die("DB ERROR: " . $e->getMessage());
+    }
+    echo("database created.\n");
+    $db_cfg_file = fopen(__DIR__.'/config/db.php', 'w');
+    $write = fwrite($db_cfg_file, "<?php
+return [
+    'dsn' => 'mysql:host=localhost;dbname=$dbName',
+    'user' => '$sqlUser',
+    'pass' => '$sqlPass',
+];");
+    fclose($db_cfg_file);
+    if ($write)
+        die("database config file changed.\n");
+    else
+        die("database config file (/config/db.php) IS NOT changed! \n");
+}
+
+
+
+//todo здесь подключение БД и работа через activeRecord
+
+$config = array_merge(
+    require __DIR__ . '/config/main.php',
+    require __DIR__ . '/app/config/main.php'
+);
+
+$db = \engine\Db::init($config);
+
+
+
+
+if ($operation == 2) {
+    $migration = require 'database/migration.php';
+    //delete tables
+    foreach (array_reverse($migration) as $table) {
+        $tableName = $table['table'];
+        $db->exec("DROP TABLE $tableName");
+    }
+    //creating tables
+    foreach ($migration as $table) {
+        $tableName = $table['table'];
+        $columns = [];
+        foreach ($table['columns'] as $name=>$type) {
+            $column = "$name " . \engine\Migration::getSqlType($type);
+            //primary key
+            if ($type == \engine\Migration::TYPE_PK)
+                $column .= ", PRIMARY KEY ($name)";
+            //foreign keys
+            if (isset($table['fk']) && key_exists($name, $table['fk'])){
+                $fk = $table['fk'][$name];
+                list($ftable, $fcolumn) = explode(':', $fk);
+                $column .= ", FOREIGN KEY ($name) REFERENCES $ftable($fcolumn)";
+            }
+            $columns[] = $column;
+        }
+
+        $columns = implode(",\n", $columns);
+        $query = "CREATE TABLE $tableName ($columns) ENGINE=InnoDB CHARACTER SET=UTF8;";
+        $db->exec($query);
+    }
+
+    die('done');
+}
+
+
+if ($operation == 3) {
+    $migration = require 'database/fakedata.php';
+    foreach ($migration as $table=>$rows) {
+        foreach ($rows as $row) {
+
+            $columns = [];
+            $values = [];
+            foreach ($row as $name=>$val) {
+                $columns[] = $name;
+                $values[] = is_string($val)? "\"$val\"": $val;
+            }
+
+            $columns = implode(', ', $columns);
+            $values = implode(', ', $values);
+
+            $query = "INSERT INTO $table ($columns) VALUES ($values);";
+            echo $query . "\n";
+            $db->exec($query);
+        }
+    }
+    die('done');
+}
+
+
+
+
+function inputNumber(array $range)
+{
+    $answer = trim(fgets(STDIN));
+    if (!ctype_digit($answer) || !in_array($answer, $range)) {
+        echo "\n  Quit db console.\n";
+        exit(0);
+    }
+    return $answer;
+}
+
+
+function inputText($maxlen)
+{
+    $answer = trim(fgets(STDIN));
+    if ($answer == '') return '';
+    if (!ctype_alnum($answer) || (strlen($answer) > $maxlen)) {
+        echo "\n  Quit db console.\n";
+        exit(0);
+    }
+    return $answer;
+}
