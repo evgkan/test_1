@@ -28,12 +28,10 @@ return [
             'product_id' => \engine\Migration::TYPE_INT,
             'category_id' => \engine\Migration::TYPE_INT,
         ],
-        /*
         'fk' => [
             'product_id' => 'product:id',
             'category_id' => 'category:id',
         ],
-        */
     ],
 
 
