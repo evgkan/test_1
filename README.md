@@ -35,6 +35,7 @@ git clone https://github.com/evgkan/test_1.git .
 На этом этапе таблицы заполняются. Данные содеожатся в файле database/fakedata.php
 
 * При ручной настройке конфигурации БД используется файл config/db.php.
+* В корне проекта лежит дамп с тестовыми данными test_data.sql
 
 
 
